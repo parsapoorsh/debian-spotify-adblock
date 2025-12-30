@@ -8,12 +8,24 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    - name: Run make
-      run: make
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+    - name: Install cargo-deb
+      run: cargo install cargo-deb
+    - name: Build release binary + Debian package
+      run: cargo deb --strip -o target/debian/spotify-adblock-amd64.deb
     - name: Strip binary
       run: strip target/release/libspotifyadblock.so
-    - name: Create build artifact
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: spotify-adblock.so
-        path: target/release/libspotifyadblock.so
+        path: |
+          target/release/libspotifyadblock.so
+          target/debian/spotify-adblock-amd64.deb
+        name: spotify-adblock-builds

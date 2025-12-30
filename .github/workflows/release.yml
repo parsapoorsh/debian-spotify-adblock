@@ -11,14 +11,24 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    - name: Run make
-      run: make
-    - name: Attach build artifact to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_name: spotify-adblock.so
-        asset_path: target/release/libspotifyadblock.so
-        asset_content_type: application/octet-stream
+        path: |
+          ~/.cargo/
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+    - name: Install cargo-deb
+      run: cargo install cargo-deb
+    - name: Build release binary + Debian package
+      run: cargo deb --no-strip -o target/debian/spotify-adblock-amd64.deb
+    - name: Upload build artifact to release
+      run: |
+        gh release upload \
+        "${{ github.event.release.tag_name }}" \
+        target/release/libspotifyadblock.so \
+        target/debian/spotify-adblock-amd64.deb \
+        --clobber
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
